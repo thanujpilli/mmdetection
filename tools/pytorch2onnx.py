@@ -8,13 +8,22 @@ import torch
 
 from mmdet.core import (build_model_from_cfg, generate_inputs_and_wrap_model,
                         preprocess_example_input)
+import torch.onnx.symbolic_opset10 as onnx_symbolic
+def upsample_nearest2d(g, input, output_size, *args):
+    # Currently, TRT 5.1/6.0/7.0 ONNX Parser does not support all ONNX ops
+    # needed to support dynamic upsampling ONNX forumlation
+    # Here we hardcode scale=2 as a temporary workaround
+    scales = g.op("Constant", value_t=torch.tensor([1., 1., 2., 2.]))
+    return g.op("Resize", input, scales, mode_s="nearest")
+
+onnx_symbolic.upsample_nearest2d = upsample_nearest2d
 
 
 def pytorch2onnx(config_path,
                  checkpoint_path,
                  input_img,
                  input_shape,
-                 opset_version=11,
+                 opset_version=10,
                  show=False,
                  output_file='tmp.onnx',
                  verify=False,
